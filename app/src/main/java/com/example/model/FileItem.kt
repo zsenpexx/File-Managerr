@@ -67,6 +67,31 @@ data class StorageStats(
         get() = if (totalBytes > 0) (usedBytes.toFloat() / totalBytes.toFloat()).coerceIn(0f, 1f) else 0f
 }
 
+data class CategorySummary(
+    val sizeBytes: Long = 0L,
+    val count: Int = 0
+) {
+    val displaySubtitle: String get() {
+        val formatted = if (sizeBytes <= 0L) "0 B" else {
+            val units = arrayOf("B", "KB", "MB", "GB", "TB")
+            val digitGroups = (Math.log10(sizeBytes.toDouble()) / Math.log10(1024.0)).toInt().coerceIn(0, units.size - 1)
+            val value = sizeBytes / Math.pow(1024.0, digitGroups.toDouble())
+            if (digitGroups == 0) "$sizeBytes B" else String.format(java.util.Locale.US, "%.1f %s", value, units[digitGroups])
+        }
+        return "$formatted ($count)"
+    }
+}
+
+data class DeviceMediaStats(
+    val downloads: CategorySummary = CategorySummary(),
+    val images: CategorySummary = CategorySummary(),
+    val audio: CategorySummary = CategorySummary(),
+    val videos: CategorySummary = CategorySummary(),
+    val documents: CategorySummary = CategorySummary(),
+    val apps: CategorySummary = CategorySummary(),
+    val newFiles: CategorySummary = CategorySummary()
+)
+
 enum class ClipboardAction {
     COPY, CUT
 }

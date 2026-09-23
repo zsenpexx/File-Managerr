@@ -147,9 +147,9 @@ fun LiquidGlassBackground(
                     } else {
                         Brush.verticalGradient(
                             listOf(
-                                Color.White.copy(alpha = 0.38f),
-                                Color.White.copy(alpha = 0.22f),
-                                Color.White.copy(alpha = 0.42f)
+                                Color.White.copy(alpha = 0.20f),
+                                Color.White.copy(alpha = 0.08f),
+                                Color.White.copy(alpha = 0.22f)
                             )
                         )
                     }

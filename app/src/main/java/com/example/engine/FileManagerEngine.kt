@@ -6,8 +6,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.os.StatFs
+import android.provider.MediaStore
 import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
+import com.example.model.CategorySummary
+import com.example.model.DeviceMediaStats
 import com.example.model.FileCategory
 import com.example.model.FileItem
 import com.example.model.SortBy
@@ -190,6 +193,7 @@ object FileManagerEngine {
 
     /**
      * Computes storage device stats (used, total, available) with TTL cache.
+     * Accurately inspects the real device storage file system partitions.
      */
     suspend fun computeStorageStats(context: Context, forceRefresh: Boolean = false): StorageStats = withContext(Dispatchers.IO) {
         val now = System.currentTimeMillis()
@@ -198,14 +202,32 @@ object FileManagerEngine {
         }
 
         try {
-            val root = getDefaultStorageDirectory(context)
-            val stat = StatFs(root.path)
-            val blockSize = stat.blockSizeLong
-            val totalBlocks = stat.blockCountLong
-            val availableBlocks = stat.availableBlocksLong
+            val candidatePaths = listOfNotNull(
+                Environment.getDataDirectory(),
+                Environment.getExternalStorageDirectory(),
+                context.getExternalFilesDir(null),
+                context.filesDir
+            )
 
-            val totalBytes = totalBlocks * blockSize
-            val availableBytes = availableBlocks * blockSize
+            var totalBytes = 0L
+            var availableBytes = 0L
+
+            for (path in candidatePaths) {
+                try {
+                    if (path.exists()) {
+                        val stat = StatFs(path.path)
+                        val blockSize = stat.blockSizeLong
+                        val total = stat.blockCountLong * blockSize
+                        val avail = stat.availableBlocksLong * blockSize
+                        if (total > 0L) {
+                            totalBytes = total
+                            availableBytes = avail
+                            break
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+
             val usedBytes = (totalBytes - availableBytes).coerceAtLeast(0L)
 
             val stats = StorageStats(
@@ -220,6 +242,281 @@ object FileManagerEngine {
             e.printStackTrace()
             return@withContext cachedStorageStats ?: StorageStats()
         }
+    }
+
+    /**
+     * Real device queries for home category summaries (Downloads, Images, Audio, Videos, Documents, Apps, New files).
+     * Uses MediaStore + Device Filesystem scans to report actual counts and sizes on the user's device!
+     */
+    suspend fun computeDeviceMediaStats(context: Context, rootDir: File): DeviceMediaStats = withContext(Dispatchers.IO) {
+        // 1. Downloads
+        val downloadsSummary = run {
+            var count = 0
+            var size = 0L
+            val downloadDirs = listOfNotNull(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                File(rootDir, "Downloads"),
+                File(context.filesDir, "Downloads")
+            ).distinctBy { it.absolutePath }
+
+            val seenPaths = mutableSetOf<String>()
+            for (dir in downloadDirs) {
+                if (dir.exists() && dir.isDirectory) {
+                    dir.listFiles()?.forEach { file ->
+                        if (!file.name.startsWith(".") && seenPaths.add(file.absolutePath)) {
+                            count++
+                            size += if (file.isDirectory) file.walkTopDown().filter { it.isFile }.sumOf { it.length() } else file.length()
+                        }
+                    }
+                }
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try {
+                    val projection = arrayOf(MediaStore.Downloads._ID, MediaStore.Downloads.SIZE, MediaStore.Downloads.DATA)
+                    context.contentResolver.query(MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, null, null, null)?.use { cursor ->
+                        val sizeIdx = cursor.getColumnIndex(MediaStore.Downloads.SIZE)
+                        val dataIdx = cursor.getColumnIndex(MediaStore.Downloads.DATA)
+                        while (cursor.moveToNext()) {
+                            val path = if (dataIdx >= 0) cursor.getString(dataIdx) else null
+                            if (path == null || seenPaths.add(path)) {
+                                count++
+                                if (sizeIdx >= 0) {
+                                    val s = cursor.getLong(sizeIdx)
+                                    if (s > 0) size += s
+                                }
+                            }
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        // 2. Images
+        val imagesSummary = run {
+            var count = 0
+            var size = 0L
+            try {
+                val projection = arrayOf(MediaStore.Images.Media._ID, MediaStore.Images.Media.SIZE)
+                context.contentResolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, projection, null, null, null)?.use { cursor ->
+                    val sizeIdx = cursor.getColumnIndex(MediaStore.Images.Media.SIZE)
+                    while (cursor.moveToNext()) {
+                        count++
+                        if (sizeIdx >= 0) {
+                            val s = cursor.getLong(sizeIdx)
+                            if (s > 0) size += s
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (count == 0) {
+                val imgExtensions = setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "heic", "svg")
+                val imgDirs = listOfNotNull(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM),
+                    File(rootDir, "Pictures"),
+                    File(rootDir, "DCIM")
+                ).distinctBy { it.absolutePath }
+                for (dir in imgDirs) {
+                    if (dir.exists()) {
+                        dir.walkTopDown().maxDepth(4).filter { it.isFile && it.extension.lowercase() in imgExtensions }.forEach {
+                            count++
+                            size += it.length()
+                        }
+                    }
+                }
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        // 3. Audio
+        val audioSummary = run {
+            var count = 0
+            var size = 0L
+            try {
+                val projection = arrayOf(MediaStore.Audio.Media._ID, MediaStore.Audio.Media.SIZE)
+                context.contentResolver.query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, null, null, null)?.use { cursor ->
+                    val sizeIdx = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
+                    while (cursor.moveToNext()) {
+                        count++
+                        if (sizeIdx >= 0) {
+                            val s = cursor.getLong(sizeIdx)
+                            if (s > 0) size += s
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (count == 0) {
+                val audioExtensions = setOf("mp3", "m4a", "wav", "aac", "flac", "ogg", "opus", "mid", "wma")
+                val audioDirs = listOfNotNull(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PODCASTS),
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_RINGTONES),
+                    File(rootDir, "Music"),
+                    File(rootDir, "Audio")
+                ).distinctBy { it.absolutePath }
+                for (dir in audioDirs) {
+                    if (dir.exists()) {
+                        dir.walkTopDown().maxDepth(4).filter { it.isFile && it.extension.lowercase() in audioExtensions }.forEach {
+                            count++
+                            size += it.length()
+                        }
+                    }
+                }
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        // 4. Videos
+        val videosSummary = run {
+            var count = 0
+            var size = 0L
+            try {
+                val projection = arrayOf(MediaStore.Video.Media._ID, MediaStore.Video.Media.SIZE)
+                context.contentResolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, projection, null, null, null)?.use { cursor ->
+                    val sizeIdx = cursor.getColumnIndex(MediaStore.Video.Media.SIZE)
+                    while (cursor.moveToNext()) {
+                        count++
+                        if (sizeIdx >= 0) {
+                            val s = cursor.getLong(sizeIdx)
+                            if (s > 0) size += s
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (count == 0) {
+                val videoExtensions = setOf("mp4", "mkv", "webm", "avi", "mov", "3gp", "flv", "wmv", "ts")
+                val videoDirs = listOfNotNull(
+                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES),
+                    File(rootDir, "Movies"),
+                    File(rootDir, "Videos")
+                ).distinctBy { it.absolutePath }
+                for (dir in videoDirs) {
+                    if (dir.exists()) {
+                        dir.walkTopDown().maxDepth(4).filter { it.isFile && it.extension.lowercase() in videoExtensions }.forEach {
+                            count++
+                            size += it.length()
+                        }
+                    }
+                }
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        // 5. Documents
+        val docsSummary = run {
+            var count = 0
+            var size = 0L
+            val docExtensions = setOf(
+                "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+                "txt", "rtf", "csv", "epub", "md", "html", "htm", "json", "xml"
+            )
+            val docDirs = listOfNotNull(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+                File(rootDir, "Documents"),
+                File(rootDir, "Download"),
+                File(rootDir, "Downloads")
+            ).distinctBy { it.absolutePath }
+
+            val seenPaths = mutableSetOf<String>()
+            for (dir in docDirs) {
+                if (dir.exists()) {
+                    dir.walkTopDown().maxDepth(4).filter { it.isFile && it.extension.lowercase() in docExtensions }.forEach {
+                        if (seenPaths.add(it.absolutePath)) {
+                            count++
+                            size += it.length()
+                        }
+                    }
+                }
+            }
+            rootDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in docExtensions }?.forEach {
+                if (seenPaths.add(it.absolutePath)) {
+                    count++
+                    size += it.length()
+                }
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        // 6. Apps (Installed User Applications on device)
+        val appsSummary = run {
+            var count = 0
+            var size = 0L
+            try {
+                val pm = context.packageManager
+                val apps = pm.getInstalledApplications(0)
+                for (app in apps) {
+                    if ((app.flags and android.content.pm.ApplicationInfo.FLAG_SYSTEM) == 0 ||
+                        (app.flags and android.content.pm.ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) {
+                        count++
+                        val file = File(app.sourceDir)
+                        if (file.exists()) {
+                            size += file.length()
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            val apkDirs = listOfNotNull(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                File(rootDir, "Downloads"),
+                rootDir
+            )
+            for (dir in apkDirs) {
+                if (dir.exists()) {
+                    dir.walkTopDown().maxDepth(3).filter { it.isFile && it.extension.equals("apk", ignoreCase = true) }.forEach {
+                        count++
+                        size += it.length()
+                    }
+                }
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        // 7. New Files (Created/Modified within past 7 days)
+        val newFilesSummary = run {
+            val sevenDaysAgoSec = (System.currentTimeMillis() - 7L * 86400 * 1000L) / 1000L
+            var count = 0
+            var size = 0L
+            try {
+                val uri = MediaStore.Files.getContentUri("external")
+                val projection = arrayOf(MediaStore.MediaColumns._ID, MediaStore.MediaColumns.SIZE, MediaStore.MediaColumns.DATE_MODIFIED)
+                val selection = "${MediaStore.MediaColumns.DATE_MODIFIED} >= ?"
+                val selectionArgs = arrayOf(sevenDaysAgoSec.toString())
+                context.contentResolver.query(uri, projection, selection, selectionArgs, null)?.use { cursor ->
+                    val sizeIdx = cursor.getColumnIndex(MediaStore.MediaColumns.SIZE)
+                    while (cursor.moveToNext()) {
+                        count++
+                        if (sizeIdx >= 0) {
+                            val s = cursor.getLong(sizeIdx)
+                            if (s > 0) size += s
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
+
+            if (count == 0) {
+                val sevenDaysAgoMs = System.currentTimeMillis() - 7L * 86400 * 1000L
+                rootDir.walkTopDown().maxDepth(4).filter { it.isFile && it.lastModified() >= sevenDaysAgoMs && !it.name.startsWith(".") }.forEach {
+                    count++
+                    size += it.length()
+                }
+            }
+            CategorySummary(sizeBytes = size, count = count)
+        }
+
+        DeviceMediaStats(
+            downloads = downloadsSummary,
+            images = imagesSummary,
+            audio = audioSummary,
+            videos = videosSummary,
+            documents = docsSummary,
+            apps = appsSummary,
+            newFiles = newFilesSummary
+        )
     }
 
     /**

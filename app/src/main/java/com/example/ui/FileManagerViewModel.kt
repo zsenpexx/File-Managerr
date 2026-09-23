@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 sealed class ActiveScreen {
+    object Home : ActiveScreen()
     object MainBrowser : ActiveScreen()
     data class TxtReader(val file: File) : ActiveScreen()
     data class HtmlReader(val file: File) : ActiveScreen()
@@ -48,7 +49,7 @@ data class FileManagerUiState(
     val searchResults: List<FileItem> = emptyList(),
     val isSearching: Boolean = false,
     val isLoading: Boolean = false,
-    val activeScreen: ActiveScreen = ActiveScreen.MainBrowser,
+    val activeScreen: ActiveScreen = ActiveScreen.Home,
     val statusMessage: String? = null,
     val isDarkTheme: Boolean = true,
     val diskAnalysis: DiskDirectoryAnalysis? = null,
@@ -448,6 +449,7 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
             if (result.isSuccess) {
                 Toast.makeText(context, "Created folder: $name", Toast.LENGTH_SHORT).show()
                 loadCurrentDirectory()
+                refreshStorageStats()
             } else {
                 Toast.makeText(context, "Failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
             }
@@ -460,6 +462,7 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
             if (result.isSuccess) {
                 Toast.makeText(context, "Created file: $name", Toast.LENGTH_SHORT).show()
                 loadCurrentDirectory()
+                refreshStorageStats()
             } else {
                 Toast.makeText(context, "Failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
             }
@@ -532,8 +535,60 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
         analyzeDirectorySpace(directory)
     }
 
+    fun openHome() {
+        _uiState.update { it.copy(activeScreen = ActiveScreen.Home) }
+    }
+
+    fun openMainStorage() {
+        val root = _uiState.value.rootStorageDir
+        _uiState.update {
+            it.copy(
+                activeScreen = ActiveScreen.MainBrowser,
+                activeCategory = null
+            )
+        }
+        navigateTo(root)
+    }
+
+    fun openDownloads() {
+        val extDownloads = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        val target = if (extDownloads != null && extDownloads.exists()) {
+            extDownloads
+        } else {
+            File(_uiState.value.rootStorageDir, "Downloads").apply { if (!exists()) mkdirs() }
+        }
+        _uiState.update {
+            it.copy(
+                activeScreen = ActiveScreen.MainBrowser,
+                activeCategory = null
+            )
+        }
+        navigateTo(target)
+    }
+
+    fun openCategoryFromHome(category: FileCategory) {
+        _uiState.update {
+            it.copy(
+                activeScreen = ActiveScreen.MainBrowser
+            )
+        }
+        selectCategory(category)
+    }
+
+    fun openNewFiles() {
+        _uiState.update {
+            it.copy(
+                activeScreen = ActiveScreen.MainBrowser,
+                activeCategory = null,
+                sortBy = SortBy.DATE,
+                sortAscending = false
+            )
+        }
+        loadCurrentDirectory()
+    }
+
     fun closeDiskAnalyzer() {
-        _uiState.update { it.copy(activeScreen = ActiveScreen.MainBrowser) }
+        _uiState.update { it.copy(activeScreen = ActiveScreen.Home) }
     }
 
     fun drillDownDiskAnalyzer(directory: File) {

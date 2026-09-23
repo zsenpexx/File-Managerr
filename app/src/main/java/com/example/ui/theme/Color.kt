@@ -36,20 +36,20 @@ val TextSecondaryDark = Color(0xFF94A3B8)
 val TextMutedDark = Color(0xFF64748B)
 
 // Apple Liquid Glass & Frosted Acrylic Palette - Light Mode
-val GlassBackgroundLight = Color(0xFFE5EDF6)
-val GlassSurfaceLight = Color(0xB3FFFFFF)
-val GlassSurfaceElevatedLight = Color(0xCCFFFFFF)
-val GlassSurfaceFrostedLight = Color(0xCCFFFFFF)
-val GlassFrostPanelBgLight = Color(0xCCFFFFFF)
-val GlassBorderLight_Light = Color(0x66FFFFFF)
-val GlassBorderHighlight_Light = Color(0x99007AFF)
-val GlassSpecularEdgeLight = Color(0xFAFFFFFF)
-val GlassShadowLight = Color(0x1F000000)
+val GlassBackgroundLight = Color(0xFFF1F5F9)
+val GlassSurfaceLight = Color(0xEBFFFFFF)
+val GlassSurfaceElevatedLight = Color(0xF5FFFFFF)
+val GlassSurfaceFrostedLight = Color(0xEBFFFFFF)
+val GlassFrostPanelBgLight = Color(0xF2FFFFFF)
+val GlassBorderLight_Light = Color(0x99FFFFFF)
+val GlassBorderHighlight_Light = Color(0xCC007AFF)
+val GlassSpecularEdgeLight = Color(0xFFFFFFFF)
+val GlassShadowLight = Color(0x140F172A)
 
-// Text tokens - Light Mode (User requirement: Front colour changed to Black)
-val TextPrimaryLight = Color(0xFF000000) // True crisp Black for primary text & icons
-val TextSecondaryLight = Color(0xFF1E293B) // Deep slate black for secondary labels & file sizes
-val TextMutedLight = Color(0xFF475569) // Charcoal black for subtitles & timestamps
+// Text tokens - Light Mode (Crisp Black front color and rich dark slate)
+val TextPrimaryLight = Color(0xFF000000) // Deep pure Black for primary text & icons
+val TextSecondaryLight = Color(0xFF1E293B) // Dark slate for secondary labels & file sizes
+val TextMutedLight = Color(0xFF475569) // Charcoal slate for subtitles & counters
 
 val GlassOverlay = Color(0x99070D1E)
 val GlassOverlayLight = Color(0x550F172A)
@@ -150,8 +150,8 @@ val DarkLiquidGlassColors = LiquidGlassColors(
 val LightLiquidGlassColors = LiquidGlassColors(
     isDark = false,
     background = GlassBackgroundLight,
-    surface = Color(0xCCFFFFFF),
-    surfaceElevated = Color(0xE6FFFFFF),
+    surface = GlassSurfaceLight,
+    surfaceElevated = GlassSurfaceElevatedLight,
     panelBackground = GlassFrostPanelBgLight,
     textPrimary = TextPrimaryLight,
     textSecondary = TextSecondaryLight,
@@ -165,10 +165,10 @@ val LightLiquidGlassColors = LiquidGlassColors(
     overlayColor = GlassOverlayLight,
     cardBackgroundBrush = Brush.linearGradient(
         colors = listOf(
+            Color.White.copy(alpha = 0.90f),
             Color.White.copy(alpha = 0.78f),
-            Color.White.copy(alpha = 0.58f),
-            Color(0xFFF1F5F9).copy(alpha = 0.65f),
-            Color.White.copy(alpha = 0.72f)
+            Color(0xFFF8FAFC).copy(alpha = 0.82f),
+            Color.White.copy(alpha = 0.88f)
         ),
         start = Offset.Zero,
         end = Offset.Infinite
@@ -176,40 +176,41 @@ val LightLiquidGlassColors = LiquidGlassColors(
     cardBorderBrush = Brush.linearGradient(
         colors = listOf(
             Color.White,
-            Color(0xFF007AFF).copy(alpha = 0.35f),
-            Color.White.copy(alpha = 0.85f),
-            Color(0x28000000)
+            Color(0xFF007AFF).copy(alpha = 0.30f),
+            Color.White.copy(alpha = 0.90f),
+            Color(0x180F172A)
         ),
         start = Offset.Zero,
         end = Offset.Infinite
     ),
     panelBackgroundBrush = Brush.verticalGradient(
         colors = listOf(
-            Color.White.copy(alpha = 0.85f),
-            Color(0xFFF8FAFC).copy(alpha = 0.90f)
+            Color.White.copy(alpha = 0.92f),
+            Color(0xFFF8FAFC).copy(alpha = 0.96f)
         )
     ),
     panelBorderBrush = Brush.linearGradient(
         colors = listOf(
             Color.White,
-            Color(0xFF007AFF).copy(alpha = 0.40f),
-            Color.White.copy(alpha = 0.75f),
-            Color(0x30000000)
+            Color(0xFF007AFF).copy(alpha = 0.35f),
+            Color.White.copy(alpha = 0.85f),
+            Color(0x200F172A)
         ),
         start = Offset.Zero,
         end = Offset.Infinite
     ),
     dialogBackgroundBrush = Brush.verticalGradient(
         listOf(
-            Color.White.copy(alpha = 0.94f),
-            Color(0xFFF8FAFC).copy(alpha = 0.96f)
+            Color.White.copy(alpha = 0.96f),
+            Color(0xFFF8FAFC).copy(alpha = 0.98f)
         )
     ),
     dialogBorderBrush = Brush.linearGradient(
         listOf(
             Color.White,
-            Color(0xFF007AFF).copy(alpha = 0.45f),
-            Color(0x40000000)
+            Color(0xFF007AFF).copy(alpha = 0.40f),
+            Color.White.copy(alpha = 0.80f),
+            Color(0x250F172A)
         )
     )
 )

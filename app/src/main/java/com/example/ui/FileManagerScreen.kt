@@ -132,9 +132,18 @@ import com.example.ui.theme.GlassPurple
 import com.example.ui.theme.LiquidGlassTheme
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LightMode
+import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
+import com.example.ui.home.FileHomePageScreen
+import com.example.ui.home.FileManagerSidebar
+import kotlinx.coroutines.launch
 import java.io.File
 
 @Composable
@@ -143,6 +152,9 @@ fun FileManagerScreen(
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
+
+    val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
+    val coroutineScope = rememberCoroutineScope()
 
     // Dialog state holders
     var showCreateDialog by remember { mutableStateOf(false) }
@@ -188,31 +200,77 @@ fun FileManagerScreen(
 
     // Intercept back presses
     BackHandler {
-        if (uiState.activeScreen is ActiveScreen.DiskAnalyzer) {
+        if (drawerState.isOpen) {
+            coroutineScope.launch { drawerState.close() }
+        } else if (uiState.activeScreen is ActiveScreen.DiskAnalyzer) {
             viewModel.closeDiskAnalyzer()
-        } else if (uiState.activeScreen !is ActiveScreen.MainBrowser) {
+        } else if (uiState.activeScreen !is ActiveScreen.MainBrowser && uiState.activeScreen !is ActiveScreen.Home) {
             viewModel.closeReader()
-        } else if (!viewModel.navigateUp()) {
-            // Close app if at root
+        } else if (uiState.activeScreen is ActiveScreen.MainBrowser) {
+            if (uiState.activeCategory != null) {
+                viewModel.selectCategory(null)
+            } else if (!viewModel.navigateUp()) {
+                viewModel.openHome()
+            }
+        } else {
+            // Close app if on Home
             (context as? android.app.Activity)?.finish()
         }
     }
 
-    // Active Reader Screens (Txt, Html, Archive, DiskAnalyzer)
-    AnimatedContent(
-        targetState = uiState.activeScreen,
-        transitionSpec = {
-            if (targetState is ActiveScreen.MainBrowser) {
-                (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { -it / 2 } + fadeIn(tween(200)))
-                    .togetherWith(slideOutHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeOut(tween(160)))
-            } else {
-                (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeIn(tween(200)))
-                    .togetherWith(slideOutHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { -it / 2 } + fadeOut(tween(160)))
-            }
-        },
-        label = "screen_transition"
-    ) { activeScreen ->
-        when (activeScreen) {
+    ModalNavigationDrawer(
+        drawerState = drawerState,
+        drawerContent = {
+            FileManagerSidebar(
+                activeScreen = uiState.activeScreen,
+                storageStats = uiState.storageStats,
+                onNavigateHome = { viewModel.openHome() },
+                onNavigateMainStorage = { viewModel.openMainStorage() },
+                onNavigateDownloads = { viewModel.openDownloads() },
+                onNavigateAnalyzer = { viewModel.openDiskAnalyzer() },
+                onNavigateCategory = { cat -> viewModel.openCategoryFromHome(cat) },
+                onNavigateNewFiles = { viewModel.openNewFiles() },
+                onToggleTheme = { viewModel.toggleTheme() },
+                onCloseSidebar = {
+                    coroutineScope.launch { drawerState.close() }
+                }
+            )
+        }
+    ) {
+        // Active Reader Screens & Home Screen
+        AnimatedContent(
+            targetState = uiState.activeScreen,
+            transitionSpec = {
+                if (targetState is ActiveScreen.Home) {
+                    (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { -it / 2 } + fadeIn(tween(200)))
+                        .togetherWith(slideOutHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeOut(tween(160)))
+                } else if (targetState is ActiveScreen.MainBrowser) {
+                    (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { -it / 2 } + fadeIn(tween(200)))
+                        .togetherWith(slideOutHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeOut(tween(160)))
+                } else {
+                    (slideInHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { it } + fadeIn(tween(200)))
+                        .togetherWith(slideOutHorizontally(spring(stiffness = Spring.StiffnessMediumLow)) { -it / 2 } + fadeOut(tween(160)))
+                }
+            },
+            label = "screen_transition"
+        ) { activeScreen ->
+            when (activeScreen) {
+                is ActiveScreen.Home -> {
+                    FileHomePageScreen(
+                        storageStats = uiState.storageStats,
+                        deviceMediaStats = uiState.deviceMediaStats,
+                        onOpenSidebar = {
+                            coroutineScope.launch { drawerState.open() }
+                        },
+                        onNavigateToMainStorage = { viewModel.openMainStorage() },
+                        onNavigateToDownloads = { viewModel.openDownloads() },
+                        onOpenDiskAnalyzer = { viewModel.openDiskAnalyzer() },
+                        onOpenCategory = { cat -> viewModel.openCategoryFromHome(cat) },
+                        onOpenNewFiles = { viewModel.openNewFiles() },
+                        onToggleTheme = { viewModel.toggleTheme() },
+                        onRefreshStats = { viewModel.refreshStorageStats() }
+                    )
+                }
             is ActiveScreen.DiskAnalyzer -> {
                 DiskAnalyzerScreen(
                     analysis = uiState.diskAnalysis,
@@ -372,7 +430,9 @@ fun FileManagerScreen(
                                         onCreateNew = { showCreateDialog = true },
                                         onBackCategory = { viewModel.selectCategory(null) },
                                         onOpenAnalyzer = { viewModel.openDiskAnalyzer() },
-                                        onToggleTheme = { viewModel.toggleTheme() }
+                                        onToggleTheme = { viewModel.toggleTheme() },
+                                        onOpenSidebar = { coroutineScope.launch { drawerState.open() } },
+                                        onNavigateHome = { viewModel.openHome() }
                                     )
                                 }
                             }
@@ -600,6 +660,7 @@ fun FileManagerScreen(
             }
         }
     }
+    }
 
     // Dialogs
     if (showCreateDialog) {
@@ -683,7 +744,9 @@ private fun MainTopBar(
     onCreateNew: () -> Unit,
     onBackCategory: () -> Unit,
     onOpenAnalyzer: () -> Unit,
-    onToggleTheme: () -> Unit
+    onToggleTheme: () -> Unit,
+    onOpenSidebar: () -> Unit,
+    onNavigateHome: () -> Unit
 ) {
     val colors = LiquidGlassTheme.colors
 
@@ -708,19 +771,20 @@ private fun MainTopBar(
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = colors.primaryAccent)
                         }
                     } else {
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(Brush.linearGradient(listOf(colors.primaryAccent.copy(alpha = 0.3f), colors.secondaryAccent.copy(alpha = 0.2f))))
-                                .border(1.dp, colors.borderLight, RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center
+                        IconButton(
+                            onClick = onOpenSidebar,
+                            modifier = Modifier.testTag("btn_main_sidebar")
                         ) {
-                            Icon(Icons.Default.FolderOpen, contentDescription = null, tint = colors.primaryAccent, modifier = Modifier.size(20.dp))
+                            Icon(
+                                Icons.Default.Menu,
+                                contentDescription = "Open Sidebar Navigation",
+                                tint = colors.textPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
 
                     Text(
                         text = title,
@@ -733,6 +797,18 @@ private fun MainTopBar(
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Home Button
+                    IconButton(
+                        onClick = onNavigateHome,
+                        modifier = Modifier.testTag("btn_main_home")
+                    ) {
+                        Icon(
+                            Icons.Default.Home,
+                            contentDescription = "Return to Home",
+                            tint = colors.primaryAccent,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                     // Disk Space Analyzer Button
                     IconButton(
                         onClick = onOpenAnalyzer,
