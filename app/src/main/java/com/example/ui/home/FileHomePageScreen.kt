@@ -421,7 +421,7 @@ private fun HomeTopBar(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = "File Manager",
+                    text = "File Managerr",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
@@ -1295,7 +1295,7 @@ private fun VipFeaturesDialog(onDismiss: () -> Unit) {
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    text = "File Manager + VIP",
+                    text = "File Managerr + VIP",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary

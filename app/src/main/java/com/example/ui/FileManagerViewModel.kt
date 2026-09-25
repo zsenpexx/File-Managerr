@@ -8,6 +8,7 @@ import com.example.engine.ArchiveEngine
 import com.example.engine.FileManagerEngine
 import com.example.model.ClipboardAction
 import com.example.model.ClipboardState
+import com.example.model.DeviceMediaStats
 import com.example.model.DiskChartType
 import com.example.model.DiskDirectoryAnalysis
 import com.example.model.DiskItemAnalysis
@@ -37,6 +38,7 @@ data class FileManagerUiState(
     val rootStorageDir: File,
     val items: List<FileItem> = emptyList(),
     val storageStats: StorageStats = StorageStats(),
+    val deviceMediaStats: DeviceMediaStats = DeviceMediaStats(),
     val selectedFiles: Set<File> = emptySet(),
     val isSelectionMode: Boolean = false,
     val clipboard: ClipboardState? = null,
@@ -242,8 +244,9 @@ class FileManagerViewModel(application: Application) : AndroidViewModel(applicat
 
     fun refreshStorageStats() {
         viewModelScope.launch {
-            val stats = FileManagerEngine.computeStorageStats(context)
-            _uiState.update { it.copy(storageStats = stats) }
+            val stats = FileManagerEngine.computeStorageStats(context, forceRefresh = true)
+            val mediaStats = FileManagerEngine.computeDeviceMediaStats(context, _uiState.value.rootStorageDir)
+            _uiState.update { it.copy(storageStats = stats, deviceMediaStats = mediaStats) }
         }
     }
 

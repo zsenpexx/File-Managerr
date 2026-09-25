@@ -402,7 +402,7 @@ fun FileManagerScreen(
                                     )
                                 } else {
                                     MainTopBar(
-                                        title = if (uiState.activeCategory != null) uiState.activeCategory!!.label else "File Manager",
+                                        title = if (uiState.activeCategory != null) uiState.activeCategory!!.label else "File Managerr",
                                         isCategoryActive = uiState.activeCategory != null,
                                         isSearchExpanded = isSearchExpanded,
                                         searchQuery = uiState.searchQuery,

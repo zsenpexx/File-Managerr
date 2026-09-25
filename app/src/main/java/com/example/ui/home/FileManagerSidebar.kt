@@ -344,7 +344,7 @@ fun FileManagerSidebar(
 
                 // Footer Info
                 Text(
-                    text = "File Manager + v1.0 • Liquid Glass",
+                    text = "File Managerr v1.0.1 • Liquid Glass",
                     fontSize = 11.sp,
                     color = colors.textMuted,
                     modifier = Modifier.padding(horizontal = 24.dp)
@@ -409,7 +409,7 @@ private fun SidebarHeader(
             Column {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = "File Manager",
+                        text = "File Managerr",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary
