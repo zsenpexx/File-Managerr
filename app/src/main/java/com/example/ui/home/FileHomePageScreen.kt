@@ -327,23 +327,28 @@ fun FileHomePageScreen(
                 }
             }
 
-            // Bottom Ad Banner Place (ColorNote Notepad style)
+            // Bottom Ad Banner Place (File Managerr App Ad)
             AnimatedVisibility(
                 visible = !showAdDismissed,
                 enter = fadeIn(),
                 exit = fadeOut()
             ) {
                 BottomAdBannerPlace(
-                    onInstallClick = {
-                        Toast.makeText(context, "Opening ColorNote Notepad...", Toast.LENGTH_SHORT).show()
+                    onActionClick = {
                         try {
-                            val intent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=com.socialnmobile.colornote"))
-                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(intent)
+                            val sendIntent = Intent().apply {
+                                action = Intent.ACTION_SEND
+                                putExtra(
+                                    Intent.EXTRA_TEXT,
+                                    "Check out File Managerr! High-performance Android file manager with disk analyzer: https://github.com"
+                                )
+                                type = "text/plain"
+                            }
+                            val shareIntent = Intent.createChooser(sendIntent, "Share File Managerr")
+                            shareIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            context.startActivity(shareIntent)
                         } catch (e: Exception) {
-                            val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=com.socialnmobile.colornote"))
-                            webIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.startActivity(webIntent)
+                            Toast.makeText(context, "File Managerr v1.0.1 is active!", Toast.LENGTH_SHORT).show()
                         }
                     },
                     onDismiss = { showAdDismissed = true }
@@ -414,7 +419,7 @@ private fun HomeTopBar(
                 )
             }
 
-            // Title: "File Manager +"
+            // Title: "File Managerr"
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
@@ -425,12 +430,6 @@ private fun HomeTopBar(
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     color = colors.textPrimary
-                )
-                Text(
-                    text = " +",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = colors.primaryAccent
                 )
             }
 
@@ -784,16 +783,16 @@ private fun StorageDonutChartIcon() {
 }
 
 /**
- * Bottom Ad Place closely matching the user's reference screenshot:
- * - Left: Yellow sticky note icon with handwritten "NOTE"
- * - Title: "ColorNote Notepad Notes To..."
- * - Subtitle: "ColorNote® is a simple and awesome notepad app."
- * - Right: "INSTALL" blue button
+ * Bottom Ad Place promoting "File Managerr" (Self-App Ad):
+ * - Left: "File Managerr" stylized app logo
+ * - Title: "File Managerr"
+ * - Subtitle: "Fast, sleek file explorer with built-in disk analyzer."
+ * - Right: "SHARE" blue button
  * - Tiny "Ad" indicator in the bottom corner
  */
 @Composable
 private fun BottomAdBannerPlace(
-    onInstallClick: () -> Unit,
+    onActionClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     val colors = LiquidGlassTheme.colors
@@ -820,8 +819,8 @@ private fun BottomAdBannerPlace(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Yellow Sticky Note Icon
-                StickyNoteAdIcon()
+                // File Managerr App Icon
+                FileManagerrAdIcon()
 
                 Spacer(modifier = Modifier.width(12.dp))
 
@@ -830,7 +829,7 @@ private fun BottomAdBannerPlace(
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "ColorNote Notepad Notes To...",
+                        text = "File Managerr",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         color = colors.textPrimary,
@@ -839,7 +838,7 @@ private fun BottomAdBannerPlace(
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "ColorNote® is a simple and awesome notepad app.",
+                        text = "Fast, sleek file explorer with storage analyzer & clean UI.",
                         fontSize = 12.sp,
                         color = colors.textMuted,
                         maxLines = 2,
@@ -850,9 +849,9 @@ private fun BottomAdBannerPlace(
 
                 Spacer(modifier = Modifier.width(10.dp))
 
-                // "INSTALL" Blue Button
+                // "SHARE" Blue Button
                 Button(
-                    onClick = onInstallClick,
+                    onClick = onActionClick,
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF3B82F6), // Vibrant Play Store Blue
@@ -861,10 +860,10 @@ private fun BottomAdBannerPlace(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     modifier = Modifier
                         .height(38.dp)
-                        .testTag("ad_install_button")
+                        .testTag("ad_action_button")
                 ) {
                     Text(
-                        text = "INSTALL",
+                        text = "SHARE",
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
@@ -887,37 +886,28 @@ private fun BottomAdBannerPlace(
 }
 
 /**
- * Yellow Post-It Note Graphic Icon with "NOTE".
+ * File Managerr App Icon for In-App Ad Banner
  */
 @Composable
-private fun StickyNoteAdIcon() {
+private fun FileManagerrAdIcon() {
     Box(
         modifier = Modifier
             .size(46.dp)
-            .shadow(2.dp, RoundedCornerShape(6.dp))
-            .clip(RoundedCornerShape(6.dp))
-            .background(Color(0xFFFEF08A)) // Warm Post-It Yellow
-            .border(0.8.dp, Color(0xFFFDE047), RoundedCornerShape(6.dp)),
+            .shadow(3.dp, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF0284C7), Color(0xFF0EA5E9), Color(0xFF06B6D4))
+                )
+            )
+            .border(1.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            // Folded corner on top/bottom
-            val path = Path().apply {
-                moveTo(size.width * 0.75f, size.height)
-                lineTo(size.width, size.height * 0.75f)
-                lineTo(size.width * 0.75f, size.height * 0.75f)
-                close()
-            }
-            drawPath(path, color = Color(0xFFEAB308).copy(alpha = 0.6f))
-        }
-
-        Text(
-            text = "NOTE",
-            fontSize = 10.sp,
-            fontWeight = FontWeight.ExtraBold,
-            color = Color(0xFF713F12), // Deep brown/amber ink
-            fontFamily = FontFamily.SansSerif,
-            letterSpacing = (-0.5).sp
+        Icon(
+            imageVector = Icons.Default.Folder,
+            contentDescription = "File Managerr App Logo",
+            tint = Color.White,
+            modifier = Modifier.size(26.dp)
         )
     }
 }

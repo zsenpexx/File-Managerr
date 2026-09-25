@@ -407,20 +407,12 @@ private fun SidebarHeader(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "File Managerr",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colors.textPrimary
-                    )
-                    Text(
-                        text = " +",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = colors.primaryAccent
-                    )
-                }
+                Text(
+                    text = "File Managerr",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = colors.textPrimary
+                )
                 Text(
                     text = "High-Performance Explorer",
                     fontSize = 11.5.sp,
